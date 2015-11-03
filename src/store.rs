@@ -5,11 +5,12 @@ use std::cmp::Ordering::{ Equal, Less, Greater };
 use num::traits::{ Zero, Bounded };
 
 use util::{ self, ExtInt };
-use store::Store::{ Array, Bitmap };
+use store::Store::{ Array, Bitmap, RunLength };
 
 pub enum Store<Size: ExtInt> {
     Array(Vec<Size>),
     Bitmap(Box<[u64]>),
+    RunLength { start: Vec<Size>, length: Vec<Size> },
 }
 
 impl<Size: ExtInt> Store<Size> {
@@ -29,6 +30,7 @@ impl<Size: ExtInt> Store<Size> {
                     false
                 }
             },
+            RunLength { ref mut start, ref mut length } => unimplemented!(),
         }
     }
 
@@ -48,6 +50,7 @@ impl<Size: ExtInt> Store<Size> {
                     false
                 }
             },
+            RunLength { ref mut start, ref mut length } => unimplemented!(),
         }
     }
 
@@ -55,7 +58,8 @@ impl<Size: ExtInt> Store<Size> {
     pub fn contains(&self, index: Size) -> bool {
         match *self {
             Array(ref vec) => vec.binary_search(&index).is_ok(),
-            Bitmap(ref bits) => bits[key(index)] & (1 << bit(index)) != 0
+            Bitmap(ref bits) => bits[key(index)] & (1 << bit(index)) != 0,
+            RunLength { ref start, ref length } => unimplemented!(),
         }
     }
 
@@ -79,6 +83,7 @@ impl<Size: ExtInt> Store<Size> {
             (&Array(ref vec), store @ &Bitmap(..)) | (store @ &Bitmap(..), &Array(ref vec)) => {
                 vec.iter().all(|&i| !store.contains(i))
             },
+            (_, _) => unimplemented!(),
         }
     }
 
@@ -109,6 +114,7 @@ impl<Size: ExtInt> Store<Size> {
                 vec.iter().all(|&i| store.contains(i))
             },
             (&Bitmap(..), &Array(..)) => false,
+            (_, _) => unimplemented!(),
         }
     }
 
@@ -126,6 +132,7 @@ impl<Size: ExtInt> Store<Size> {
                 }
                 Array(vec)
             },
+            RunLength { ref start, ref length } => unimplemented!(),
         }
     }
 
@@ -140,6 +147,7 @@ impl<Size: ExtInt> Store<Size> {
                 Bitmap(bits)
             },
             Bitmap(..) => panic!("Cannot convert bitmap to bitmap"),
+            RunLength { ref start, ref length } => unimplemented!(),
         }
     }
 
@@ -159,6 +167,7 @@ impl<Size: ExtInt> Store<Size> {
                 *this = this.to_bitmap();
                 this.union_with(other);
             },
+            (_, _) => unimplemented!(),
         }
     }
 
@@ -196,6 +205,7 @@ impl<Size: ExtInt> Store<Size> {
                 new.intersect_with(this);
                 *this = new;
             },
+            (_, _) => unimplemented!(),
         }
     }
 
@@ -234,6 +244,7 @@ impl<Size: ExtInt> Store<Size> {
                     }
                 }
             },
+            (_, _) => unimplemented!(),
         }
     }
 
@@ -282,6 +293,7 @@ impl<Size: ExtInt> Store<Size> {
                 new.symmetric_difference_with(this);
                 *this = new;
             },
+            (_, _) => unimplemented!(),
         }
     }
 
@@ -295,6 +307,7 @@ impl<Size: ExtInt> Store<Size> {
                 }
                 util::cast(len)
             },
+            RunLength { ref start, ref length } => util::cast::<usize, u64>(start.len()) + util::cast::<Size, u64>(length.iter().sum()),
         }
     }
 
@@ -307,6 +320,7 @@ impl<Size: ExtInt> Store<Size> {
                     .next().map(|(index, bit)| util::cast(index * 64 + (bit.trailing_zeros() as usize)))
                     .unwrap()
             },
+            RunLength { ref start, .. } => *start.first().unwrap(),
         }
     }
 
@@ -319,6 +333,7 @@ impl<Size: ExtInt> Store<Size> {
                     .next().map(|(index, bit)| util::cast(index * 64 + (63 - (bit.leading_zeros() as usize))))
                     .unwrap()
             },
+            RunLength { ref start, ref length } => *start.last().unwrap() + *length.last().unwrap(),
         }
     }
 
@@ -327,6 +342,7 @@ impl<Size: ExtInt> Store<Size> {
         match *self {
             Array(ref vec) => Box::new(vec.iter().map(|x| *x)),
             Bitmap(ref bits) => Box::new(BitmapIter::new(bits)),
+            RunLength { ref start, ref length } => unimplemented!(),
         }
     }
 
@@ -353,6 +369,7 @@ impl<Size: ExtInt> Clone for Store<Size> {
             Bitmap(ref bits) => {
                 Bitmap(bits.iter().map(|&i| i).collect::<Vec<u64>>().into_boxed_slice())
             },
+            RunLength { ref start, ref length } => RunLength { start: start.clone(), length: length.clone() },
         }
     }
 }
