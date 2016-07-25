@@ -7,6 +7,7 @@ use num::traits::{ Zero, Bounded };
 use iter::{ self, Iter, UnionIter, IntersectionIter, DifferenceIter, SymmetricDifferenceIter };
 use container::{ Container };
 use util::{ self, Halveable, ExtInt };
+use store::Store::{ Array, Bitmap };
 
 use RoaringBitmap as RB;
 
@@ -208,6 +209,30 @@ pub fn symmetric_difference_with<Size: ExtInt + Halveable>(this: &mut RB<Size>, 
             }
         };
     }
+}
+
+#[inline]
+pub fn to_raw64<Size: ExtInt + Halveable>(this: &RB<Size>) -> Vec<u64> {
+    let mut raw64: Vec<u64> = Vec::new();
+    raw64.push(this.containers.len() as u64);
+    for c in &this.containers {
+        raw64.extend(c.to_raw64());
+    }
+    return raw64
+}
+
+#[inline]
+pub fn from_raw64<Size: ExtInt + Halveable>(bits: Vec<u64>) -> RB<Size>{
+    let mut rb: RB<Size> = RB::new();
+
+    let num_containers = bits[0];
+    let mut next = 1;
+    for _ in 0..num_containers {
+        let size = bits[next+3];
+        rb.containers.push(Container::<Size>::from_raw64(&bits, next));
+        next += 4 + size as usize;
+    }
+    return rb;
 }
 
 #[inline]

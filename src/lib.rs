@@ -61,6 +61,11 @@ impl<Size: ExtInt + Halveable> RoaringBitmap<Size> {
         imp::new()
     }
 
+    #[inline]
+    pub fn from_raw64(v: Vec<u64>) -> Self {
+        imp::from_raw64(v)
+    }
+
     /// Adds a value to the set. Returns `true` if the value was not already present in the set.
     ///
     /// # Examples
@@ -480,6 +485,11 @@ impl<Size: ExtInt + Halveable> RoaringBitmap<Size> {
     #[inline]
     pub fn symmetric_difference_with(&mut self, other: &Self) {
         imp::symmetric_difference_with(self, other)
+    }
+
+    #[inline]
+    pub fn to_raw64(&self) -> Vec<u64> {
+        imp::to_raw64(self)
     }
 }
 
